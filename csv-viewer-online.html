@@ -30,7 +30,6 @@
             width: 100%;
             background: white;
             border-radius: 32px;
-            /*box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);*/
             padding: 2rem 1.5rem 2.5rem;
             transition: all 0.2s ease;
             display: flex;
@@ -38,7 +37,7 @@
             align-items: center;
         }
 
-        /* ---- Drag & Drop зона — строго по стилю из скриншота ---- */
+        /* ---- Drag & Drop зона ---- */
         #drop-zone {
             display: flex;
             flex-direction: column;
@@ -58,7 +57,6 @@
             flex-shrink: 0;
         }
 
-        /* После загрузки файла — растягиваем на всю ширину контейнера */
         #drop-zone.has-file {
             width: 100%;
             max-width: 100%;
@@ -95,7 +93,6 @@
             background: #ecf3fa;
         }
 
-        /* Иконка SVG */
         .icon-svg {
             width: 72px;
             height: 72px;
@@ -160,7 +157,6 @@
             opacity: 0.6;
         }
 
-        /* Скрытый input для выбора файла */
         .file-input-hidden {
             position: absolute;
             left: 0;
@@ -172,7 +168,6 @@
             z-index: 2;
         }
 
-        /* Информация о файле */
         .file-info {
             font-size: 0.9rem;
             color: #475569;
@@ -198,7 +193,6 @@
             margin-left: 0.3rem;
         }
 
-        /* Таблица — адаптивный контейнер */
         .table-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -235,6 +229,7 @@
             border-bottom: 1px solid #eef2f6;
             word-break: break-word;
             max-width: 300px;
+            white-space: nowrap;
         }
 
         tr:last-child td {
@@ -245,7 +240,6 @@
             background-color: #fafcff;
         }
 
-        /* Состояние пустой таблицы */
         .empty-state {
             text-align: center;
             padding: 2.5rem 1rem;
@@ -262,12 +256,6 @@
             align-items: center;
             gap: 0.3rem;
         }
-
-        /*.empty-state .hint-icon {
-            font-size: 2.4rem;
-            opacity: 0.5;
-            margin-bottom: 0.2rem;
-        }*/
 
         /* Адаптив для маленьких экранов */
         @media (max-width: 600px) {
@@ -327,8 +315,16 @@
             }
         }
 
-        @media (max-width: 400px) {
+        /* Критический диапазон 401-500px - уменьшаем шрифт чтобы избежать переносов */
+        @media (min-width: 401px) and (max-width: 500px) {
+            th,
+            td {
+                font-size: 0.7rem;
+                padding: 0.4rem 0.3rem;
+            }
+        }
 
+        @media (max-width: 400px) {
             th,
             td {
                 font-size: 0.7rem;
@@ -351,7 +347,20 @@
             }
         }
 
-        /* Скроллбар */
+        /* На очень маленьких экранах разрешаем перенос */
+        @media (max-width: 360px) {
+            td {
+                white-space: normal;
+                word-break: break-all;
+                max-width: 120px;
+            }
+            
+            th {
+                white-space: normal;
+                word-break: break-word;
+            }
+        }
+
         .table-wrapper::-webkit-scrollbar {
             height: 6px;
             width: 6px;
@@ -375,13 +384,10 @@
 
 <body>
     <div class="container" role="main">
-        <!-- Drop zone — стили в точности как в скриншоте -->
         <div id="drop-zone">
-            <!-- Скрытый input для выбора файла -->
             <input type="file" id="csvFileInput" class="file-input-hidden" accept=".csv, text/csv"
                 aria-label="Загрузить CSV-файл">
 
-            <!-- Иконка SVG -->
             <div class="icon-svg">
                 <svg height="200px" width="200px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg"
                     xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 56 56" xml:space="preserve" fill="#000000">
@@ -421,14 +427,11 @@
             <div class="hint-small">CSV · до 10 МБ</div>
         </div>
 
-        <!-- Информация о файле -->
         <div id="fileInfo" class="file-info">📎 Файл не выбран</div>
 
-        <!-- Контейнер для таблицы или пустого состояния -->
         <div id="tableContainer" style="width: 100%;">
             <div class="empty-state" id="emptyState">
                 <p>
-                    <!--<span class="hint-icon">📄</span>-->
                     <span>Загрузите CSV-файл, чтобы увидеть данные</span>
                     <span style="font-size:0.8rem; color:#b9c7d8;">Поддерживаются: запятая, точка с запятой,
                         табуляция</span>
@@ -445,7 +448,6 @@
 
     <script>
         (function () {
-            // DOM элементы
             const fileInput = document.getElementById('csvFileInput');
             const dropZone = document.getElementById('drop-zone');
             const browseBtn = document.getElementById('browseBtn');
@@ -455,7 +457,6 @@
             const tableBody = document.getElementById('tableBody');
             const emptyState = document.getElementById('emptyState');
 
-            // --- Парсер CSV с автоопределением разделителя ---
             function parseCSV(text) {
                 if (text.charCodeAt(0) === 0xFEFF) {
                     text = text.slice(1);
@@ -519,7 +520,6 @@
                 return result;
             }
 
-            // --- Отрисовка таблицы ---
             function renderTable(data) {
                 if (!data || data.length === 0) {
                     emptyState.style.display = 'block';
@@ -568,7 +568,6 @@
                 tableWrapper.style.display = 'block';
             }
 
-            // --- Обновление информации о файле ---
             function updateFileInfo(file) {
                 if (!file) {
                     fileInfo.innerHTML = '📎 Файл не выбран';
@@ -579,7 +578,6 @@
                 fileInfo.innerHTML = `📎 <span>${file.name}</span> <span class="file-size">· ${sizeStr}</span>`;
             }
 
-            // --- Обновление состояния drop-zone (ширина) ---
             function setDropZoneState(hasFile) {
                 if (hasFile) {
                     dropZone.classList.add('has-file');
@@ -588,7 +586,6 @@
                 }
             }
 
-            // --- Обработка файла (чтение + парсинг + отображение) ---
             function handleFile(file) {
                 if (!file) {
                     updateFileInfo(null);
@@ -624,7 +621,6 @@
                 reader.readAsText(file, 'UTF-8');
             }
 
-            // --- Событие выбора файла через input ---
             fileInput.addEventListener('change', function (event) {
                 const file = event.target.files[0];
                 if (!file) {
@@ -635,23 +631,19 @@
                     return;
                 }
                 handleFile(file);
-                // Сброс, чтобы можно было загрузить тот же файл повторно
                 fileInput.value = '';
             });
 
-            // --- Клик по кнопке "Browse file" активирует input ---
             browseBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
                 fileInput.click();
             });
 
-            // --- Клик по зоне дропа (кроме кнопки) тоже активирует input ---
             dropZone.addEventListener('click', function (e) {
                 if (e.target === browseBtn || e.target.closest('.browse-btn')) return;
                 fileInput.click();
             });
 
-            // --- Drag & Drop ---
             dropZone.addEventListener('dragover', function (e) {
                 e.preventDefault();
                 dropZone.classList.add('dragover');
@@ -682,7 +674,6 @@
                 }
             });
 
-            // Предотвращаем стандартное поведение браузера при перетаскивании
             document.addEventListener('dragover', function (e) {
                 e.preventDefault();
             });
@@ -690,7 +681,6 @@
                 e.preventDefault();
             });
 
-            // --- Инициализация: пустое состояние ---
             emptyState.style.display = 'block';
             tableWrapper.style.display = 'none';
             setDropZoneState(false);
