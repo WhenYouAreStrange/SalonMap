@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>CSV просмотр</title>
+    <style>
+        /* Глобальный сброс и базовая типографика */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 1.5rem 1rem;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            /*box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);*/
+            padding: 2rem 1.5rem 2.5rem;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* ---- Drag & Drop зона — строго по стилю из скриншота ---- */
+        #drop-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 360px;
+            padding: 48px 32px;
+            border: 2px dashed #c5d0de;
+            border-radius: 7px;
+            background: #f8fafc;
+            color: #64748b;
+            transition: border-color 0.2s, background 0.2s;
+            z-index: 1;
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        /* После загрузки файла — растягиваем на всю ширину контейнера */
+        #drop-zone.has-file {
+            width: 100%;
+            max-width: 100%;
+            padding: 24px 20px;
+            border: 2px dashed #c5d0de;
+            background: #f8fafc;
+            gap: 4px;
+        }
+
+        #drop-zone.has-file .icon-svg {
+            width: 48px;
+            height: 48px;
+        }
+
+        #drop-zone.has-file .main-text {
+            font-size: 1rem;
+        }
+
+        #drop-zone.has-file .or-text {
+            font-size: 0.85rem;
+        }
+
+        #drop-zone.has-file .browse-btn {
+            font-size: 0.9rem;
+            padding: 0.45rem 1.6rem;
+        }
+
+        #drop-zone.has-file .hint-small {
+            display: none;
+        }
+
+        #drop-zone.dragover {
+            border-color: #0b2b4d;
+            background: #ecf3fa;
+        }
+
+        /* Иконка SVG */
+        .icon-svg {
+            width: 72px;
+            height: 72px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.8;
+            user-select: none;
+        }
+
+        .icon-svg svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #drop-zone .main-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        #drop-zone .or-text {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        #drop-zone .browse-btn {
+            display: inline-block;
+            background: #0b2b4d;
+            color: white;
+            font-weight: 500;
+            font-size: 1rem;
+            padding: 0.55rem 2rem;
+            border-radius: 60px;
+            border: none;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 10px rgba(11, 43, 77, 0.12);
+            cursor: pointer;
+            user-select: none;
+            letter-spacing: 0.2px;
+        }
+
+        #drop-zone .browse-btn:hover {
+            background: #1a3f62;
+        }
+
+        #drop-zone .browse-btn:active {
+            transform: scale(0.96);
+        }
+
+        #drop-zone .hint-small {
+            position: absolute;
+            bottom: 0.6rem;
+            right: 1rem;
+            font-size: 0.7rem;
+            color: #b9c7d8;
+            pointer-events: none;
+            user-select: none;
+            opacity: 0.6;
+        }
+
+        /* Скрытый input для выбора файла */
+        .file-input-hidden {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        /* Информация о файле */
+        .file-info {
+            font-size: 0.9rem;
+            color: #475569;
+            background: #f1f5f9;
+            padding: 0.5rem 1.2rem;
+            border-radius: 7px;
+            display: inline-block;
+            margin: 1rem auto 1.2rem;
+            word-break: break-all;
+            max-width: 100%;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .file-info span {
+            font-weight: 500;
+            color: #0b2b4d;
+        }
+
+        .file-info .file-size {
+            font-weight: 400;
+            color: #64748b;
+            margin-left: 0.3rem;
+        }
+
+        /* Таблица — адаптивный контейнер */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 0.5rem;
+            border-radius: 7px;
+            border: 1px solid #e9edf2;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 300px;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #1e293b;
+            font-weight: 600;
+            padding: 0.9rem 0.7rem;
+            border-bottom: 2px solid #dce2ea;
+            text-align: left;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+        td {
+            padding: 0.7rem 0.7rem;
+            border-bottom: 1px solid #eef2f6;
+            word-break: break-word;
+            max-width: 300px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: #fafcff;
+        }
+
+        /* Состояние пустой таблицы */
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: #94a3b8;
+            font-size: 1rem;
+            background: transparent;
+            border-radius: 16px;
+            width: 100%;
+        }
+
+        .empty-state p {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        /*.empty-state .hint-icon {
+            font-size: 2.4rem;
+            opacity: 0.5;
+            margin-bottom: 0.2rem;
+        }*/
+
+        /* Адаптив для маленьких экранов */
+        @media (max-width: 600px) {
+            .container {
+                padding: 1.2rem 0.8rem 1.8rem;
+                border-radius: 24px;
+            }
+
+            #drop-zone {
+                width: 100%;
+                max-width: 100%;
+                padding: 32px 20px;
+                min-height: 160px;
+            }
+
+            .icon-svg {
+                width: 56px;
+                height: 56px;
+            }
+
+            #drop-zone .main-text {
+                font-size: 1rem;
+            }
+
+            #drop-zone .browse-btn {
+                font-size: 0.9rem;
+                padding: 0.45rem 1.5rem;
+            }
+
+            #drop-zone.has-file {
+                padding: 18px 16px;
+            }
+
+            #drop-zone.has-file .icon-svg {
+                width: 40px;
+                height: 40px;
+            }
+
+            #drop-zone.has-file .main-text {
+                font-size: 0.9rem;
+            }
+
+            th,
+            td {
+                padding: 0.5rem 0.4rem;
+                font-size: 0.8rem;
+            }
+
+            .table-wrapper {
+                border-radius: 7px;
+            }
+
+            .file-info {
+                font-size: 0.8rem;
+                padding: 0.3rem 0.9rem;
+                margin: 0.6rem auto 1rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+
+            th,
+            td {
+                font-size: 0.7rem;
+                padding: 0.4rem 0.3rem;
+            }
+
+            #drop-zone {
+                padding: 24px 16px;
+                min-height: 140px;
+            }
+
+            .icon-svg {
+                width: 44px;
+                height: 44px;
+            }
+
+            #drop-zone.has-file .icon-svg {
+                width: 36px;
+                height: 36px;
+            }
+        }
+
+        /* Скроллбар */
+        .table-wrapper::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" role="main">
+        <!-- Drop zone — стили в точности как в скриншоте -->
+        <div id="drop-zone">
+            <!-- Скрытый input для выбора файла -->
+            <input type="file" id="csvFileInput" class="file-input-hidden" accept=".csv, text/csv"
+                aria-label="Загрузить CSV-файл">
+
+            <!-- Иконка SVG -->
+            <div class="icon-svg">
+                <svg height="200px" width="200px" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg"
+                    xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 56 56" xml:space="preserve" fill="#000000">
+                    <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+                    <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+                    <g id="SVGRepo_iconCarrier">
+                        <g>
+                            <path style="fill:#E9E9E0;"
+                                d="M36.985,0H7.963C7.155,0,6.5,0.655,6.5,1.926V55c0,0.345,0.655,1,1.463,1h40.074 c0.808,0,1.463-0.655,1.463-1V12.978c0-0.696-0.093-0.92-0.257-1.085L37.607,0.257C37.442,0.093,37.218,0,36.985,0z">
+                            </path>
+                            <polygon style="fill:#D9D7CA;" points="37.5,0.151 37.5,12 49.349,12 "></polygon>
+                            <path style="fill:#F36FA0;"
+                                d="M48.037,56H7.963C7.155,56,6.5,55.345,6.5,54.537V39h43v15.537C49.5,55.345,48.845,56,48.037,56z">
+                            </path>
+                            <g>
+                                <path style="fill:#FFFFFF;"
+                                    d="M21.58,51.975c-0.374,0.364-0.798,0.638-1.271,0.82c-0.474,0.183-0.984,0.273-1.531,0.273 c-0.602,0-1.155-0.109-1.661-0.328s-0.948-0.542-1.326-0.971c-0.378-0.429-0.675-0.966-0.889-1.613 c-0.214-0.647-0.321-1.395-0.321-2.242s0.107-1.593,0.321-2.235c0.214-0.643,0.51-1.178,0.889-1.606 c0.378-0.429,0.822-0.754,1.333-0.978c0.51-0.224,1.062-0.335,1.654-0.335c0.547,0,1.057,0.091,1.531,0.273 c0.474,0.183,0.897,0.456,1.271,0.82l-1.135,1.012c-0.228-0.265-0.481-0.456-0.759-0.574c-0.278-0.118-0.567-0.178-0.868-0.178 c-0.337,0-0.659,0.063-0.964,0.191c-0.306,0.128-0.579,0.344-0.82,0.649c-0.242,0.306-0.431,0.699-0.567,1.183 s-0.21,1.075-0.219,1.777c0.009,0.684,0.08,1.267,0.212,1.75c0.132,0.483,0.314,0.877,0.547,1.183s0.497,0.528,0.793,0.67 c0.296,0.142,0.608,0.212,0.937,0.212s0.636-0.06,0.923-0.178s0.549-0.31,0.786-0.574L21.58,51.975z">
+                                </path>
+                                <path style="fill:#FFFFFF;"
+                                    d="M29.633,50.238c0,0.364-0.075,0.718-0.226,1.06s-0.362,0.643-0.636,0.902s-0.611,0.467-1.012,0.622 c-0.401,0.155-0.857,0.232-1.367,0.232c-0.219,0-0.444-0.012-0.677-0.034s-0.467-0.062-0.704-0.116 c-0.237-0.055-0.463-0.13-0.677-0.226c-0.214-0.096-0.399-0.212-0.554-0.349l0.287-1.176c0.127,0.073,0.289,0.144,0.485,0.212 c0.196,0.068,0.398,0.132,0.608,0.191c0.209,0.06,0.419,0.107,0.629,0.144c0.209,0.036,0.405,0.055,0.588,0.055 c0.556,0,0.982-0.13,1.278-0.39c0.296-0.26,0.444-0.645,0.444-1.155c0-0.31-0.105-0.574-0.314-0.793 c-0.21-0.219-0.472-0.417-0.786-0.595s-0.654-0.355-1.019-0.533c-0.365-0.178-0.707-0.388-1.025-0.629 c-0.319-0.241-0.583-0.526-0.793-0.854c-0.21-0.328-0.314-0.738-0.314-1.23c0-0.446,0.082-0.843,0.246-1.189 s0.385-0.641,0.663-0.882c0.278-0.241,0.602-0.426,0.971-0.554s0.759-0.191,1.169-0.191c0.419,0,0.843,0.039,1.271,0.116 c0.428,0.077,0.774,0.203,1.039,0.376c-0.055,0.118-0.119,0.248-0.191,0.39c-0.073,0.142-0.142,0.273-0.205,0.396 c-0.064,0.123-0.119,0.226-0.164,0.308c-0.046,0.082-0.073,0.128-0.082,0.137c-0.055-0.027-0.116-0.063-0.185-0.109 s-0.167-0.091-0.294-0.137c-0.128-0.046-0.296-0.077-0.506-0.096c-0.21-0.019-0.479-0.014-0.807,0.014 c-0.183,0.019-0.355,0.07-0.52,0.157s-0.31,0.193-0.438,0.321c-0.128,0.128-0.228,0.271-0.301,0.431 c-0.073,0.159-0.109,0.313-0.109,0.458c0,0.364,0.104,0.658,0.314,0.882c0.209,0.224,0.469,0.419,0.779,0.588 c0.31,0.169,0.647,0.333,1.012,0.492c0.364,0.159,0.704,0.354,1.019,0.581s0.576,0.513,0.786,0.854 C29.528,49.261,29.633,49.7,29.633,50.238z">
+                                </path>
+                                <path style="fill:#FFFFFF;"
+                                    d="M34.035,53.055l-3.131-10.131h1.873l2.338,8.695l2.475-8.695h1.859l-3.281,10.131H34.035z">
+                                </path>
+                            </g>
+                            <path style="fill:#C8BDB8;"
+                                d="M23.5,16v-4h-12v4v2v2v2v2v2v2v2v4h10h2h21v-4v-2v-2v-2v-2v-2v-4H23.5z M13.5,14h8v2h-8V14z M13.5,18h8v2h-8V18z M13.5,22h8v2h-8V22z M13.5,26h8v2h-8V26z M21.5,32h-8v-2h8V32z M42.5,32h-19v-2h19V32z M42.5,28h-19v-2h19V28 z M42.5,24h-19v-2h19V24z M23.5,20v-2h19v2H23.5z">
+                            </path>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="main-text">Перетащите сюда свой CSV-файл</div>
+            <div class="or-text">или</div>
+            <button class="browse-btn" id="browseBtn" type="button">Загрузить файл</button>
+            <div class="hint-small">CSV · до 10 МБ</div>
+        </div>
+
+        <!-- Информация о файле -->
+        <div id="fileInfo" class="file-info">📎 Файл не выбран</div>
+
+        <!-- Контейнер для таблицы или пустого состояния -->
+        <div id="tableContainer" style="width: 100%;">
+            <div class="empty-state" id="emptyState">
+                <p>
+                    <!--<span class="hint-icon">📄</span>-->
+                    <span>Загрузите CSV-файл, чтобы увидеть данные</span>
+                    <span style="font-size:0.8rem; color:#b9c7d8;">Поддерживаются: запятая, точка с запятой,
+                        табуляция</span>
+                </p>
+            </div>
+            <div class="table-wrapper" id="tableWrapper" style="display: none;">
+                <table id="csvTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // DOM элементы
+            const fileInput = document.getElementById('csvFileInput');
+            const dropZone = document.getElementById('drop-zone');
+            const browseBtn = document.getElementById('browseBtn');
+            const fileInfo = document.getElementById('fileInfo');
+            const tableWrapper = document.getElementById('tableWrapper');
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            // --- Парсер CSV с автоопределением разделителя ---
+            function parseCSV(text) {
+                if (text.charCodeAt(0) === 0xFEFF) {
+                    text = text.slice(1);
+                }
+
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+                if (lines.length === 0) return [];
+
+                const firstLine = lines[0];
+                const separators = [',', ';', '\t'];
+                let bestSep = ',';
+                let maxCount = -1;
+
+                separators.forEach(sep => {
+                    const count = (firstLine.match(new RegExp(sep, 'g')) || []).length;
+                    if (count > maxCount) {
+                        maxCount = count;
+                        bestSep = sep;
+                    }
+                });
+
+                if (maxCount === 0) {
+                    if (firstLine.includes('\t')) bestSep = '\t';
+                    else if (firstLine.includes(';')) bestSep = ';';
+                    else bestSep = ',';
+                }
+
+                const result = [];
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const row = [];
+                    let current = '';
+                    let insideQuotes = false;
+                    let char, nextChar;
+
+                    for (let j = 0; j < line.length; j++) {
+                        char = line[j];
+                        nextChar = (j + 1 < line.length) ? line[j + 1] : '';
+
+                        if (char === '"') {
+                            if (insideQuotes && nextChar === '"') {
+                                current += '"';
+                                j++;
+                            } else {
+                                insideQuotes = !insideQuotes;
+                            }
+                        } else if (char === bestSep && !insideQuotes) {
+                            row.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    row.push(current.trim());
+
+                    const hasData = row.some(cell => cell !== '');
+                    if (hasData || row.length > 1) {
+                        result.push(row);
+                    }
+                }
+                return result;
+            }
+
+            // --- Отрисовка таблицы ---
+            function renderTable(data) {
+                if (!data || data.length === 0) {
+                    emptyState.style.display = 'block';
+                    tableWrapper.style.display = 'none';
+                    return;
+                }
+
+                let headerRow = [];
+                let bodyRows = [];
+
+                if (data.length >= 2) {
+                    headerRow = data[0].map(h => h.trim() || '—');
+                    bodyRows = data.slice(1);
+                } else {
+                    headerRow = data[0].map((_, idx) => `Столбец ${idx + 1}`);
+                    bodyRows = [data[0]];
+                }
+
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '';
+
+                const theadRow = document.createElement('tr');
+                headerRow.forEach(header => {
+                    const th = document.createElement('th');
+                    th.textContent = header;
+                    theadRow.appendChild(th);
+                });
+                tableHead.appendChild(theadRow);
+
+                bodyRows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    const rowData = [...row];
+                    while (rowData.length < headerRow.length) {
+                        rowData.push('');
+                    }
+                    const cells = rowData.slice(0, headerRow.length);
+                    cells.forEach(cell => {
+                        const td = document.createElement('td');
+                        td.textContent = cell || ' ';
+                        tr.appendChild(td);
+                    });
+                    tableBody.appendChild(tr);
+                });
+
+                emptyState.style.display = 'none';
+                tableWrapper.style.display = 'block';
+            }
+
+            // --- Обновление информации о файле ---
+            function updateFileInfo(file) {
+                if (!file) {
+                    fileInfo.innerHTML = '📎 Файл не выбран';
+                    return;
+                }
+                const sizeInKB = (file.size / 1024).toFixed(1);
+                const sizeStr = file.size < 1024 ? `${file.size} байт` : `${sizeInKB} KB`;
+                fileInfo.innerHTML = `📎 <span>${file.name}</span> <span class="file-size">· ${sizeStr}</span>`;
+            }
+
+            // --- Обновление состояния drop-zone (ширина) ---
+            function setDropZoneState(hasFile) {
+                if (hasFile) {
+                    dropZone.classList.add('has-file');
+                } else {
+                    dropZone.classList.remove('has-file');
+                }
+            }
+
+            // --- Обработка файла (чтение + парсинг + отображение) ---
+            function handleFile(file) {
+                if (!file) {
+                    updateFileInfo(null);
+                    setDropZoneState(false);
+                    emptyState.style.display = 'block';
+                    tableWrapper.style.display = 'none';
+                    return;
+                }
+
+                updateFileInfo(file);
+                setDropZoneState(true);
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        const text = e.target.result;
+                        const parsedData = parseCSV(text);
+                        renderTable(parsedData);
+                    } catch (err) {
+                        fileInfo.innerHTML = `⚠️ Ошибка парсинга: ${err.message || 'неизвестная ошибка'}`;
+                        emptyState.style.display = 'block';
+                        tableWrapper.style.display = 'none';
+                        console.warn('CSV parsing error:', err);
+                    }
+                };
+
+                reader.onerror = function () {
+                    fileInfo.innerHTML = '❌ Не удалось прочитать файл';
+                    emptyState.style.display = 'block';
+                    tableWrapper.style.display = 'none';
+                };
+
+                reader.readAsText(file, 'UTF-8');
+            }
+
+            // --- Событие выбора файла через input ---
+            fileInput.addEventListener('change', function (event) {
+                const file = event.target.files[0];
+                if (!file) {
+                    updateFileInfo(null);
+                    setDropZoneState(false);
+                    emptyState.style.display = 'block';
+                    tableWrapper.style.display = 'none';
+                    return;
+                }
+                handleFile(file);
+                // Сброс, чтобы можно было загрузить тот же файл повторно
+                fileInput.value = '';
+            });
+
+            // --- Клик по кнопке "Browse file" активирует input ---
+            browseBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                fileInput.click();
+            });
+
+            // --- Клик по зоне дропа (кроме кнопки) тоже активирует input ---
+            dropZone.addEventListener('click', function (e) {
+                if (e.target === browseBtn || e.target.closest('.browse-btn')) return;
+                fileInput.click();
+            });
+
+            // --- Drag & Drop ---
+            dropZone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    const validTypes = ['text/csv', 'application/csv', ''];
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (validTypes.includes(file.type) || ext === 'csv') {
+                        handleFile(file);
+                    } else {
+                        fileInfo.innerHTML = '⚠️ Пожалуйста, загрузите файл в формате CSV';
+                        setDropZoneState(false);
+                        emptyState.style.display = 'block';
+                        tableWrapper.style.display = 'none';
+                    }
+                }
+            });
+
+            // Предотвращаем стандартное поведение браузера при перетаскивании
+            document.addEventListener('dragover', function (e) {
+                e.preventDefault();
+            });
+            document.addEventListener('drop', function (e) {
+                e.preventDefault();
+            });
+
+            // --- Инициализация: пустое состояние ---
+            emptyState.style.display = 'block';
+            tableWrapper.style.display = 'none';
+            setDropZoneState(false);
+
+            if (!window.FileReader) {
+                fileInfo.innerHTML = '⚠️ Ваш браузер не поддерживает FileReader';
+            }
+        })();
+    </script>
+</body>
+
+</html>
